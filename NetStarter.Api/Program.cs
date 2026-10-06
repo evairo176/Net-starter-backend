@@ -50,17 +50,13 @@ catch (Exception ex)
 }
 
 // === Middleware ===
-if (app.Environment.IsDevelopment())
+// Swagger UI selalu aktif (starter) - UI di /swagger, spec di /swagger/v1/swagger.json
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-else
-{
-    // Swagger tetap bisa di-enable di staging bareng appsettings Production
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "NetStarter API v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseHttpsRedirection();
 
