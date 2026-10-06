@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using NetStarter.Api.Common;
-using NetStarter.Api.Dtos;
-using NetStarter.Api.Services;
+using NetStarter.Api.Dtos.Api;
+using NetStarter.Api.Dtos.Product;
+using NetStarter.Api.Services.Interfaces.Product;
 
 namespace NetStarter.Api.Controllers;
 
@@ -11,76 +11,72 @@ public class ProductsController(IProductService products) : ControllerBase
 {
     /// <summary>List product (paginasi + search).</summary>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<object>>> GetAll([FromQuery] int page = 1, [FromQuery] int limit = 10, [FromQuery] string? search = null, CancellationToken ct = default)
+    public async Task<ActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int limit = 10, [FromQuery] string? search = null, CancellationToken ct = default)
     {
         page = Math.Max(1, page);
         limit = Math.Clamp(limit, 1, 100);
 
-        var (items, total) = await products.GetPagedAsync(new ProductQueryRequest(page, limit, search), ct);
-        var totalPages = (int)Math.Ceiling((double)total / limit);
+        var result = await products.GetPagedAsync(new ProductQueryRequest(page, limit, search), ct);
+        if (!result.IsSuccess)
+            return StatusCode(result.StatusCode, ApiResult.Error(result.Error!, "INTERNAL_ERROR"));
 
-        return Ok(new
-        {
-            success = true,
-            message = "Data retrieved successfully",
-            data = items,
-            meta = new
-            {
-                pagination = new
-                {
-                    current_page = page,
-                    per_page = limit,
-                    total,
-                    total_pages = totalPages,
-                    from = items.Count == 0 ? 0 : (page - 1) * limit + 1,
-                    to = (page - 1) * limit + items.Count,
-                },
-            },
-            error = (object?)null,
-        });
+        var paged = result.Data!;
+        return Ok(ApiResult.Paged(paged.Items, paged.Page, paged.Limit, paged.Total));
     }
 
     /// <summary>Detail product by id.</summary>
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<ProductDto>>> GetById(Guid id, CancellationToken ct)
+    public async Task<ActionResult> GetById(Guid id, CancellationToken ct)
     {
-        var product = await products.GetByIdAsync(id, ct);
-        return product is null
-            ? NotFound(ApiResponse<ProductDto>.Fail("Product tidak ditemukan", ErrorCodes.NotFound))
-            : Ok(ApiResponse<ProductDto>.Ok(product));
+        var result = await products.GetByIdAsync(id, ct);
+        return result.IsSuccess
+            ? Ok(ApiResult.Ok(result.Data!))
+            : StatusCode(result.StatusCode, ApiResult.NotFound(result.Error!));
     }
 
     /// <summary>Buat product baru.</summary>
     [HttpPost]
-    public async Task<ActionResult<ApiResponse<ProductDto>>> Create([FromBody] CreateProductRequest request, CancellationToken ct)
+    public async Task<ActionResult> Create([FromBody] CreateProductRequest request, CancellationToken ct)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<ProductDto>.Fail("Validation failed", ErrorCodes.Validation, ModelState));
+            return BadRequest(ApiResult.BadRequest("Validasi gagal"));
 
-        var product = await products.CreateAsync(request, ct);
-        return CreatedAtAction(nameof(GetById), new { id = product.Id }, ApiResponse<ProductDto>.Ok(product, "Product created"));
+        var result = await products.CreateAsync(request, ct);
+        return result.IsSuccess
+            ? Ok(ApiResult.Created(result.Data!))
+            : StatusCode(result.StatusCode, ApiResult.Error(result.Error!, ErrorCodeFor(result.StatusCode)));
     }
 
     /// <summary>Update product.</summary>
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<ProductDto>>> Update(Guid id, [FromBody] UpdateProductRequest request, CancellationToken ct)
+    public async Task<ActionResult> Update(Guid id, [FromBody] UpdateProductRequest request, CancellationToken ct)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<ProductDto>.Fail("Validation failed", ErrorCodes.Validation, ModelState));
+            return BadRequest(ApiResult.BadRequest("Validasi gagal"));
 
-        var product = await products.UpdateAsync(id, request, ct);
-        return product is null
-            ? NotFound(ApiResponse<ProductDto>.Fail("Product tidak ditemukan", ErrorCodes.NotFound))
-            : Ok(ApiResponse<ProductDto>.Ok(product, "Product updated"));
+        var result = await products.UpdateAsync(id, request, ct);
+        return result.IsSuccess
+            ? Ok(ApiResult.Ok(result.Data!, "Product updated"))
+            : StatusCode(result.StatusCode, ApiResult.Error(result.Error!, ErrorCodeFor(result.StatusCode)));
     }
 
     /// <summary>Hapus product.</summary>
     [HttpDelete("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<Guid>>> Delete(Guid id, CancellationToken ct)
+    public async Task<ActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var deleted = await products.DeleteAsync(id, ct);
-        return deleted is null
-            ? NotFound(ApiResponse<Guid>.Fail("Product tidak ditemukan", ErrorCodes.NotFound))
-            : Ok(ApiResponse<Guid>.Ok(deleted.Value, "Product deleted"));
+        var result = await products.DeleteAsync(id, ct);
+        return result.IsSuccess
+            ? Ok(ApiResult.Ok(result.Data, "Product deleted"))
+            : StatusCode(result.StatusCode, ApiResult.NotFound(result.Error!));
     }
+
+    private static string ErrorCodeFor(int status) => status switch
+    {
+        400 => "VALIDATION_ERROR",
+        401 => "UNAUTHORIZED",
+        403 => "FORBIDDEN",
+        404 => "NOT_FOUND",
+        409 => "CONFLICT",
+        _ => "INTERNAL_ERROR",
+    };
 }

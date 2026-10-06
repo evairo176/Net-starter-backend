@@ -2,18 +2,23 @@
 
 Starter ASP.NET Core Web API (.NET 10) - langsung jalan dengan **Swagger UI**, **EF Core + SQL Server**, **envelope response standar**, **Docker Compose**, dan contoh CRUD `Product`.
 
-## Struktur
+## Struktur (pola project-management)
 
 ```
 NetStarter.Api/
-├── Common/ApiResponse.cs      # Envelope standar: { success, message, data, error }
-├── Controllers/ProductsController.cs
-├── Data/AppDbContext.cs       # EF Core + mapping snake_case
-├── Dtos/ProductDtos.cs
-├── Entities/Product.cs
-├── Migrations/                # InitialCreate (auto-apply di startup)
-├── Services/ProductService.cs
-├── Program.cs                 # DI, Swagger, CORS, Health, Migrate+Seed
+├── Controllers/ProductsController.cs   # Controller tipis, mapping ServiceResult -> envelope
+├── Dtos/
+│   ├── Api/ApiResult.cs                # ApiResult.Ok / Created / Paged / Error / NotFound / Conflict
+│   └── Product/ProductDtos.cs          # Request & response records
+├── Entities/Product.cs                 # Entity (snake_case di DB)
+├── Data/AppDbContext.cs                # EF Core + mapping snake_case
+├── Helpers/JakartaTime.cs              # Waktu WIB (UTC+7)
+├── Migrations/                         # InitialCreate (auto-apply di startup)
+├── Services/
+│   ├── ServiceResult.cs                # ServiceResult<T> (Success/NotFound/Conflict/...)
+│   ├── Interfaces/Product/IProductService.cs
+│   └── Implementations/Product/ProductService.cs
+├── Program.cs                          # DI, Swagger, CORS, Health, Migrate + Seed
 ├── appsettings.json
 └── appsettings.Development.json
 ```
@@ -56,19 +61,27 @@ Database di-migrate + di-seed otomatis saat startup (5 product contoh). Kalau DB
 
 ## Envelope response
 
-Semua endpoint pakai satu shape:
+Semua endpoint pakai satu shape (via `ApiResult`):
 
 ```json
 {
   "success": true,
-  "message": "Data retrieved successfully",
+  "message": "Success",
   "data": [],
-  "meta": { "pagination": { "current_page": 1, "per_page": 10, "total": 5, "total_pages": 1, "from": 1, "to": 5 } },
-  "error": null
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "totalItems": 5,
+    "totalPages": 1,
+    "hasNextPage": false,
+    "hasPreviousPage": false
+  }
 }
 ```
 
-Error: `success: false`, `error.code` = `NOT_FOUND` / `VALIDATION_ERROR` / `CONFLICT` / `INTERNAL_ERROR`.
+Error: `success: false` + `code`: `NOT_FOUND` / `VALIDATION_ERROR` / `CONFLICT` / `FORBIDDEN` / `INTERNAL_ERROR`.
+
+Flow: Controller → Service mengembalikan `ServiceResult<T>` (Success/NotFound/Conflict/Forbidden/BadRequest/Fail) → Controller map ke `ApiResult.*` + status code. Layer service ga bolak-balik HTTP.
 
 ## Migrations
 

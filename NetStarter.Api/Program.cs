@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NetStarter.Api.Data;
-using NetStarter.Api.Services;
+using NetStarter.Api.Services.Interfaces.Product;
+using NetStarter.Api.Services.Implementations.Product;
 
 var builder = WebApplication.CreateBuilder(args);
 
