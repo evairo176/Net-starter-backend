@@ -43,10 +43,27 @@ docker run -d --name sqlserver -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=YourStrong
 cd NetStarter.Api
 dotnet restore
 dotnet run
-# Swagger: http://localhost:5000/swagger
+# Swagger: http://localhost:5036/swagger
 ```
 
 Database di-migrate + di-seed otomatis saat startup (5 product contoh). Kalau DB belum nyala, app tetap jalan - health + swagger hidup, log warning kasih tau cara nyalain DB.
+
+### 2b. Windows (LocalDB - tanpa install SQL Server penuh)
+
+Kalau lo pakai Windows dan gagal konek `localhost:1433` (SQL Server gak terpasang):
+
+```powershell
+# Cek LocalDB udah ada?
+sqllocaldb info          # harus ada MSSQLLocalDB
+
+# Kalau ada - langsung jalan (appsettings.Development.json udah pake LocalDB)
+dotnet run
+
+# Kalau belum ada - install LocalDB (via Visual Studio Installer / BDL):
+#   https://learn.microsoft.com/sql/database-engine/configure-windows/sql-server-express-localdb
+# atau pakai Docker Desktop:
+docker compose up -d
+```
 
 ## Endpoint
 
