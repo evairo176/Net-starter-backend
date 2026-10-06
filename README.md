@@ -43,10 +43,27 @@ docker run -d --name sqlserver -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=YourStrong
 cd NetStarter.Api
 dotnet restore
 dotnet run
-# Swagger: http://localhost:5000/swagger
+# Swagger: http://localhost:5036/swagger
 ```
 
 Database di-migrate + di-seed otomatis saat startup (5 product contoh). Kalau DB belum nyala, app tetap jalan - health + swagger hidup, log warning kasih tau cara nyalain DB.
+
+### 2b. Windows (LocalDB - tanpa install SQL Server penuh)
+
+Kalau lo pakai Windows dan gagal konek `localhost:1433` (SQL Server gak terpasang):
+
+```powershell
+# Cek LocalDB udah ada?
+sqllocaldb info          # harus ada MSSQLLocalDB
+
+# Kalau ada - langsung jalan (appsettings.Development.json udah pake LocalDB)
+dotnet run
+
+# Kalau belum ada - install LocalDB (via Visual Studio Installer / BDL):
+#   https://learn.microsoft.com/sql/database-engine/configure-windows/sql-server-express-localdb
+# atau pakai Docker Desktop:
+docker compose up -d
+```
 
 ## Endpoint
 
@@ -94,7 +111,8 @@ dotnet tool run dotnet-ef database update                 # apply manual (biasan
 
 ## Konfigurasi
 
-- Connection string: `appsettings.json` → `ConnectionStrings:Default` (default: `localhost,1433` / SA).
-- Production: set env `ConnectionStrings__Default=...` (lihat `docker-compose.yml`).
+- Connection string default (`appsettings.json`): **LocalDB Windows** (`(localdb)\MSSQLLocalDB`) - langsung jalan tanpa install SQL Server.
+- Docker / produksi: compose override via env `ConnectionStrings__Default=Server=sqlserver,1433;...` (sudah di `docker-compose.yml`).
+- Kalau mau SQL Server penuh (localhost:1433 / SA): ubah `appsettings.json` atau set env `ConnectionStrings__Default`.
 - CORS: `Cors:Origins` (default dev: `*`).
-- Port local: `dotnet run --urls http://localhost:5099`.
+- Port local: `dotnet run --urls http://localhost:5099` (default via launchSettings: 5036).
