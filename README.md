@@ -1,0 +1,87 @@
+# Net Starter Backend
+
+Starter ASP.NET Core Web API (.NET 10) - langsung jalan dengan **Swagger UI**, **EF Core + SQL Server**, **envelope response standar**, **Docker Compose**, dan contoh CRUD `Product`.
+
+## Struktur
+
+```
+NetStarter.Api/
+├── Common/ApiResponse.cs      # Envelope standar: { success, message, data, error }
+├── Controllers/ProductsController.cs
+├── Data/AppDbContext.cs       # EF Core + mapping snake_case
+├── Dtos/ProductDtos.cs
+├── Entities/Product.cs
+├── Migrations/                # InitialCreate (auto-apply di startup)
+├── Services/ProductService.cs
+├── Program.cs                 # DI, Swagger, CORS, Health, Migrate+Seed
+├── appsettings.json
+└── appsettings.Development.json
+```
+
+## Cara jalan (cepat)
+
+### 1. Pakai Docker Compose (SQL Server + API)
+
+```bash
+docker compose up -d --build
+# API: http://localhost:5028   Swagger: http://localhost:5028/swagger
+```
+
+### 2. Local dev (butuh SQL Server)
+
+```bash
+# 1) SQL Server (kalau belum ada)
+docker run -d --name sqlserver -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=YourStrong@Passw0rd' \
+  -e MSSQL_PID=Express -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+
+# 2) Jalanin API
+cd NetStarter.Api
+dotnet restore
+dotnet run
+# Swagger: http://localhost:5000/swagger
+```
+
+Database di-migrate + di-seed otomatis saat startup (5 product contoh). Kalau DB belum nyala, app tetap jalan - health + swagger hidup, log warning kasih tau cara nyalain DB.
+
+## Endpoint
+
+| Method | Path | Keterangan |
+|---|---|---|
+| GET | `/api/products?page=1&limit=10&search=` | List product (paginasi + search) |
+| GET | `/api/products/{id}` | Detail |
+| POST | `/api/products` | Buat baru |
+| PUT | `/api/products/{id}` | Update |
+| DELETE | `/api/products/{id}` | Hapus |
+| GET | `/health` | Health check |
+
+## Envelope response
+
+Semua endpoint pakai satu shape:
+
+```json
+{
+  "success": true,
+  "message": "Data retrieved successfully",
+  "data": [],
+  "meta": { "pagination": { "current_page": 1, "per_page": 10, "total": 5, "total_pages": 1, "from": 1, "to": 5 } },
+  "error": null
+}
+```
+
+Error: `success: false`, `error.code` = `NOT_FOUND` / `VALIDATION_ERROR` / `CONFLICT` / `INTERNAL_ERROR`.
+
+## Migrations
+
+```bash
+cd NetStarter.Api
+dotnet tool restore
+dotnet tool run dotnet-ef migrations add NamaPerubahan   # bikin migration baru
+dotnet tool run dotnet-ef database update                 # apply manual (biasanya auto di startup)
+```
+
+## Konfigurasi
+
+- Connection string: `appsettings.json` → `ConnectionStrings:Default` (default: `localhost,1433` / SA).
+- Production: set env `ConnectionStrings__Default=...` (lihat `docker-compose.yml`).
+- CORS: `Cors:Origins` (default dev: `*`).
+- Port local: `dotnet run --urls http://localhost:5099`.
