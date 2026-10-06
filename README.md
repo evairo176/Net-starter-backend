@@ -111,7 +111,8 @@ dotnet tool run dotnet-ef database update                 # apply manual (biasan
 
 ## Konfigurasi
 
-- Connection string: `appsettings.json` → `ConnectionStrings:Default` (default: `localhost,1433` / SA).
-- Production: set env `ConnectionStrings__Default=...` (lihat `docker-compose.yml`).
+- Connection string default (`appsettings.json`): **LocalDB Windows** (`(localdb)\MSSQLLocalDB`) - langsung jalan tanpa install SQL Server.
+- Docker / produksi: compose override via env `ConnectionStrings__Default=Server=sqlserver,1433;...` (sudah di `docker-compose.yml`).
+- Kalau mau SQL Server penuh (localhost:1433 / SA): ubah `appsettings.json` atau set env `ConnectionStrings__Default`.
 - CORS: `Cors:Origins` (default dev: `*`).
-- Port local: `dotnet run --urls http://localhost:5099`.
+- Port local: `dotnet run --urls http://localhost:5099` (default via launchSettings: 5036).
